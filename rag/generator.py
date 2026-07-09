@@ -21,6 +21,13 @@ class RAGGenerator:
             "hf_id": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
             "context": 32768,
             "ram_gb": 2,
+        },
+        "qwen2.5-3b": {
+            "name": "Qwen2.5-3B-Instruct",
+            "gguf": "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
+            "hf_id": "Qwen/Qwen2.5-3B-Instruct-GGUF",
+            "context": 32768,
+            "ram_gb": 4,
         }
     }
     
@@ -30,7 +37,7 @@ class RAGGenerator:
         "reino": {"min": 300, "max": 600, "promedio": 450},
         "región": {"min": 600, "max": 1000, "promedio": 800}
     }
-    
+
     def __init__(self, model="qwen2.5-1.5b", model_path=None, use_gpu=False):
         self.model_name = model
         self.model = None
@@ -91,17 +98,19 @@ class RAGGenerator:
         extension_lower = extension.lower()
         return self.EXTENSION_LONGITUD.get(extension_lower, {"min": 150, "max": 300, "promedio": 225})
 
-    def generar_descripcion_dnd(self, raza, ambiente, extension, temperature=0.7):
-        """Genera una descripción de escenario D&D basada en los selectores"""
-        
+    def generar_descripcion_dnd(self, raza, ambiente, extension, contextos=None, temperature=0.7):
+        """Genera una descripción de escenario D&D basada en los selectores, enriquecida con contextos recuperados por RAG"""
+
         # Obtener rango de palabras según extensión
         rango = self._obtener_longitud_por_extension(extension)
         max_tokens = rango["max"]
-        
+
         print(f"   📏 Longitud objetivo: {rango['min']}-{rango['max']} palabras ({extension})")
-        
-        # Construir prompt específico para D&D con indicación de longitud
-        prompt = self._build_dnd_prompt(raza, ambiente, extension, rango)
+        if contextos:
+            print(f"   📚 Inyectando {len(contextos)} contexto(s) recuperado(s) en el prompt")
+
+        # Construir prompt específico para D&D con indicación de longitud y contextos recuperados
+        prompt = self._build_dnd_prompt(raza, ambiente, extension, rango, contextos)
         
         if self.model:
             try:
@@ -167,16 +176,32 @@ Eres un Dungeon Master experto en Dungeons & Dragons. Creas descripciones inmers
 <|im_start|>assistant
 """
     
-    def _build_dnd_prompt(self, raza, ambiente, extension, rango):
+    def _formatear_contextos(self, contextos):
+        """Convierte los contextos recuperados por el retriever en una sección de prompt"""
+        if not contextos:
+            return ""
+
+        lineas = "\n".join(
+            f"- [relevancia {c['score']:.2f}] {c['contexto']}" for c in contextos
+        )
+        return f"""
+
+    CONTEXTO RECUPERADO (información de referencia real sobre la raza y el ambiente, úsala explícitamente para dar coherencia y detalles concretos a la descripción, no la ignores):
+    {lineas}
+"""
+
+    def _build_dnd_prompt(self, raza, ambiente, extension, rango, contextos=None):
         """Construye el prompt enfocado en aspectos políticos, económicos y sociales según extensión"""
-        
+
+        contexto_texto = self._formatear_contextos(contextos)
+
         # Prompt específico para PUEBLO (más simple, enfocado en comunidad)
         if extension.lower() == "pueblo":
             return f"""Crea una descripción de aproximadamente {rango['min']}-{rango['max']} palabras para un PUEBLO en Dungeons & Dragons con estas características:
 
     Raza principal: {raza}
     Ambiente predominante: {ambiente}
-
+{contexto_texto}
     Enfócate en:
     - **Gobierno local**: ¿Quién lidera el pueblo? (alcalde, consejo de ancianos, cacique)
     - **Economía**: ¿De qué vive la gente? (depende del ambiente)
@@ -185,14 +210,14 @@ Eres un Dungeon Master experto en Dungeons & Dragons. Creas descripciones inmers
     - **Relaciones externas**: ¿A qué reino o región pertenece?
 
     No necesitas describir paisajes, colores o detalles visuales a menos que sean importantes para entender la política local."""
-        
+
         # Prompt específico para REINO (más complejo, enfocado en política y economía regional)
         elif extension.lower() == "reino":
             return f"""Crea una descripción de aproximadamente {rango['min']}-{rango['max']} palabras para un REINO en Dungeons & Dragons con estas características:
 
     Raza principal: {raza}
     Ambiente predominante: {ambiente}
-
+{contexto_texto}
     Enfócate en:
     - **Sistema de gobierno**: Monarquía absoluta, feudal, consejo mágico, teocracia
     - **Línea de sucesión**: ¿Hay crisis sucesoria? ¿El gobernante es fuerte o débil?
@@ -202,14 +227,14 @@ Eres un Dungeon Master experto en Dungeons & Dragons. Creas descripciones inmers
     - **Relaciones exteriores**: Alianzas, tratados, enemigos, vasallaje
 
     Prioriza intrigas políticas, luchas de poder y dinámicas económicas sobre descripciones visuales."""
-        
+
         # Prompt específico para REGIÓN (muy detallado, múltiples facciones)
         else:  # región
             return f"""Crea una descripción de aproximadamente {rango['min']}-{rango['max']} palabras para una REGIÓN en Dungeons & Dragons con estas características:
 
     Raza principal: {raza}
     Ambiente predominante: {ambiente}
-
+{contexto_texto}
     Enfócate en:
     - **Estructura de poder**: Múltiples reinos, ciudades-estado, territorios autónomos
     - **Relaciones entre facciones**: Alianzas, guerras, tratados comerciales, espionaje
@@ -247,5 +272,5 @@ Eres un Dungeon Master experto en Dungeons & Dragons. Creas descripciones inmers
                 detalles_extra += "- Inmensa extensión de tierras y mares\n- Civilizaciones enteras y culturas diversas\n- Grandes eventos históricos que moldearon el mundo"
             
             descripcion_base += detalles_extra
-        
+
         return descripcion_base

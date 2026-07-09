@@ -33,63 +33,20 @@
             </div>
             <div class="modal-body">
                 <div class="selector-group">
-                    <label for="raza">Raza predominante:</label>
-                    <select id="raza" class="selector">
-                        <!-- Razas originales -->
-                        <option value="humanos">👥 Humanos</option>
-                        <option value="elfos">🧝 Elfos</option>
-                        <option value="alto elfo">✨ Alto Elfo</option>
-                        <option value="enanos">⛏️ Enanos</option>
-                        <option value="enano del valle">🏔️ Enano del Valle</option>
-                        <option value="orcos">👹 Orcos</option>
-                        <option value="medio orco">⚔️ Medio Orco</option>
-                        <option value="duendes">🔧 Gnomos</option>
-                        <option value="duende de roca">🪨 Gnomos de Roca</option>
-                        <option value="halflings">🍃 Halflings</option>
-                        <option value="medio elfo">🌙 Medio Elfo</option>
-                        <option value="tieflings">🔥 Tieflings</option>
-                        <option value="dragonborns">🐲 Dragonborns</option>
-                        <option value="tritones">🌊 Tritones</option>
-                    </select>
-                </div>
-
-                <div class="selector-group">
-                    <label for="ambiente">Ambiente:</label>
-                    <select id="ambiente" class="selector">
-                        <!-- Ambientes naturales originales -->
-                        <option value="bosques">🌲 Bosques</option>
-                        <option value="montañas">⛰️ Montañas</option>
-                        <option value="desiertos">🏜️ Desiertos</option>
-                        <option value="junglas">🌴 Junglas</option>
-                        <option value="cuevas">🕳️ Cuevas</option>
-                        <option value="pantanos">🐊 Pantanos</option>
-                        <option value="praderas">🌾 Praderas</option>
-                        <option value="tundra">❄️ Tundra</option>
-                        <option value="costas">🌊 Costas</option>
-                        <option value="steampunk">⚙️ Steampunk</option>
-                        <option value="postapocaliptico">☢️ Postapocalíptico</option>
-                        <option value="gotico">🦇 Gótico</option>
-                        <option value="medieval">🏰 Medieval</option>
-                        <option value="japones">🏯 Japonés feudal</option>
-                        <option value="cristal">🔮 Cavernas de cristal</option>
-                        <option value="flotante">☁️ Islas flotantes</option>
-                        <option value="volcanico">🌋 Tierras volcánicas</option>
-                    </select>
-                </div>
-
-                <div class="selector-group">
-                    <label for="extension">Extensión del territorio:</label>
-                    <select id="extension" class="selector">
-                        <option value="pueblo">🏘️ Pueblo</option>
-                        <option value="reino">👑 Reino</option>
-                        <option value="región">🗺️ Región</option>
-                    </select>
+                    <label for="descripcionUsuario">Describe el escenario que imaginas:</label>
+                    <textarea id="descripcionUsuario" class="selector" rows="4" placeholder="Ej: Quiero un pequeño pueblo de enanos en unas montañas nevadas, con problemas de bandidos en los caminos comerciales..."></textarea>
                 </div>
 
                 <!-- Botón para generar con IA -->
                 <button id="btnGenerarIA" class="btn-generar-ia">
                     ✨ Generar Escenario con IA
                 </button>
+
+                <!-- Parámetros detectados a partir de la descripción -->
+                <div class="preview-group" id="parametrosDetectados" style="display: none;">
+                    <label>🔍 Parámetros detectados:</label>
+                    <div id="parametrosTexto" class="parametros-badge"></div>
+                </div>
 
                 <!-- Indicador de carga con elementos en línea -->
                 <div id="loadingIndicator" style="display: none;" class="loading-indicator">

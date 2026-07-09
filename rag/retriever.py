@@ -1,10 +1,38 @@
-# Retriever simplificado - contextos predefinidos para D&D
+# Retriever con recuperación semántica real (embeddings + similitud coseno)
+
+from sentence_transformers import SentenceTransformer, util
+
 
 class RAGRetriever:
+    # Modelo de embeddings multilingüe, liviano y apto para CPU
+    MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+    # Categorías de la base de conocimiento (deben coincidir con las claves de _cargar_contextos_dnd)
+    RAZAS = [
+        "humanos", "elfos", "alto elfo", "enanos", "enano del valle", "orcos",
+        "medio orco", "duendes", "duende de roca", "halflings", "medio elfo",
+        "tieflings", "dragonborns", "tritones"
+    ]
+    AMBIENTES = [
+        "bosques", "montañas", "desiertos", "junglas", "cuevas", "pantanos",
+        "praderas", "tundra", "costas", "steampunk", "postapocaliptico",
+        "gotico", "medieval", "japones", "cristal", "flotante", "volcanico"
+    ]
+
     def __init__(self):
-        print("🎲 Inicializando Retriever para D&D")
+        print("🎲 Inicializando Retriever para D&D (embeddings semánticos)")
         self.contextos_dnd = self._cargar_contextos_dnd()
-    
+        self._ids = list(self.contextos_dnd.keys())
+        self._textos = list(self.contextos_dnd.values())
+        self._indice_por_id = {id_: i for i, id_ in enumerate(self._ids)}
+
+        print(f"   📥 Cargando modelo de embeddings: {self.MODEL_NAME}")
+        self.model = SentenceTransformer(self.MODEL_NAME)
+        self._embeddings = self.model.encode(
+            self._textos, convert_to_tensor=True, normalize_embeddings=True
+        )
+        print(f"   ✅ Índice semántico construido con {len(self._ids)} documentos")
+
     def _cargar_contextos_dnd(self):
         """Carga contextos predefinidos para D&D para todas las razas y ambientes"""
         return {
@@ -65,7 +93,7 @@ class RAGRetriever:
             
             "medieval": "Un mundo de castillos feudales, caballeros andantes y siervos de la gleba. La iglesia tiene un poder absoluto sobre las almas. Los bosques están llenos de bandidos, bestias y brujas. Las cruzadas y las guerras señoriales son constantes. La peste y el hambre acechan en cada invierno.",
             
-            "japones feudal": "Tierras de samuráis, monjes guerreros y demonios. Castillos de madera se alzan sobre pueblos que cultivan arroz. Los señores feudales luchan por el poder mientras los shinobi ejecutan misiones secretas. Los kami y yokai habitan en bosques y montañas sagradas.",
+            "japones": "Tierras de samuráis, monjes guerreros y demonios. Castillos de madera se alzan sobre pueblos que cultivan arroz. Los señores feudales luchan por el poder mientras los shinobi ejecutan misiones secretas. Los kami y yokai habitan en bosques y montañas sagradas.",
             
             "cristal": "Cavernas maravillosas donde cristales gigantes emiten luz propia. Las formaciones minerales crean paisajes oníricos de colores brillantes. Habitan gnomos, elementales de tierra y criaturas que se alimentan de energía geomántica. El eco distorsiona el sonido y la magia se siente más potente.",
             
@@ -74,30 +102,63 @@ class RAGRetriever:
             "volcanico": "Tierras de ceniza, ríos de lava y montañas que escupen fuego. Los cultistas adoran a elementales de fuego y dragones rojos. Los asentamientos se protegen en cuevas ignífugas. La agricultura es imposible pero los minerales son abundantes."
         }
     
-    def retrieve(self, query, top_k=3):
-        """Recupera contextos relevantes para la consulta"""
-        resultados = []
-        
-        # Extraer palabras clave de la consulta
+    def determinar_raza_y_ambiente(self, query: str):
+        """Determina la raza y el ambiente predominantes en la consulta libre del usuario.
+        Primero busca una mención literal (nombres propios de fantasía como 'tieflings' o
+        'steampunk' no siempre quedan bien representados por embeddings genéricos). Si el
+        usuario no menciona ninguno explícitamente, usa similitud semántica (embeddings)
+        para inferir el que mejor encaje según la descripción."""
         query_lower = query.lower()
-        
-        for clave, contexto in self.contextos_dnd.items():
-            if clave in query_lower:
-                resultados.append({
-                    "id": clave,
-                    "score": 1.0,
-                    "contexto": contexto
-                })
-        
-        # Si hay múltiples resultados, limitar a top_k
-        if resultados:
-            return resultados[:top_k]
-        
-        # Si no hay resultados específicos, devolver contextos generales
-        generales = [
+        query_embedding = self.model.encode(
+            [query], convert_to_tensor=True, normalize_embeddings=True
+        )
+        similitudes = util.cos_sim(query_embedding, self._embeddings)[0]
+
+        raza, raza_score = self._determinar_categoria(query_lower, similitudes, self.RAZAS)
+        ambiente, ambiente_score = self._determinar_categoria(query_lower, similitudes, self.AMBIENTES)
+
+        print(f"   🧬 Raza predominante detectada: {raza} (similitud {raza_score:.2f})")
+        print(f"   🗺️  Ambiente predominante detectado: {ambiente} (similitud {ambiente_score:.2f})")
+
+        return raza, ambiente, raza_score, ambiente_score
+
+    def _determinar_categoria(self, query_lower, similitudes, ids_candidatos):
+        """Mención literal primero (alta precisión para nombres propios, admitiendo
+        singular/plural, ej. 'bosque' vs 'bosques'); si no hay ninguna, recurre a la
+        similitud semántica para inferirla de la descripción."""
+        for id_ in ids_candidatos:
+            formas = {id_, id_[:-1]} if id_.endswith("s") else {id_}
+            if any(forma in query_lower for forma in formas):
+                return id_, 1.0
+
+        return self._mejor_coincidencia(similitudes, ids_candidatos)
+
+    def _mejor_coincidencia(self, similitudes, ids_candidatos):
+        """Encuentra, dentro de una categoría (razas o ambientes), el id con mayor similitud"""
+        mejor_id, mejor_score = None, -1.0
+        for id_candidato in ids_candidatos:
+            score = float(similitudes[self._indice_por_id[id_candidato]])
+            if score > mejor_score:
+                mejor_id, mejor_score = id_candidato, score
+        return mejor_id, mejor_score
+
+    def obtener_contextos(self, raza: str, ambiente: str):
+        """Recupera los contextos exactos de la raza y el ambiente ya determinados,
+        para pasárselos al generador (qué generar) y al evaluador (contra qué evaluar)"""
+        contextos = []
+
+        if raza in self.contextos_dnd:
+            contextos.append({"id": raza, "score": 1.0, "contexto": self.contextos_dnd[raza]})
+
+        if ambiente in self.contextos_dnd:
+            contextos.append({"id": ambiente, "score": 1.0, "contexto": self.contextos_dnd[ambiente]})
+
+        if contextos:
+            return contextos
+
+        # Si por algún motivo no se reconocen los ids, usar contextos generales
+        return [
             {"id": "general1", "score": 0.5, "contexto": "En D&D, los escenarios pueden variar desde mazmorras oscuras hasta reinos mágicos. Cada ambiente tiene sus propias reglas y habitantes que moldean la vida en el lugar."},
             {"id": "general2", "score": 0.5, "contexto": "Los Dungeon Masters deben crear descripciones atmosféricas para inmersión, considerando la política local, economía y relaciones entre facciones."},
             {"id": "general3", "score": 0.5, "contexto": "La geografía, el clima y las criaturas nativas definen las oportunidades y peligros de un territorio para los aventureros."}
         ]
-        
-        return generales[:top_k]

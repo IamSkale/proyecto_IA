@@ -27,7 +27,7 @@ rag_pipeline = None
 if RAG_AVAILABLE:
     try:
         rag_pipeline = RAGPipeline(
-            model="qwen2.5-1.5b",
+            model="qwen2.5-3b",
             use_gpu=False  # Cambia a True si tienes GPU
         )
         print("✅ RAG Pipeline inicializado correctamente")
@@ -48,45 +48,43 @@ def serve_static(filename):
 def generar_escenario():
     try:
         data = request.json
-        raza = data.get('raza', 'humanos')
-        ambiente = data.get('ambiente', 'bosques')
-        extension = data.get('extension', 'pueblo')
-        
+        descripcion_usuario = (data.get('descripcion') or '').strip()
+
+        if not descripcion_usuario:
+            return jsonify({"success": False, "error": "Por favor, describe el escenario que quieres crear."}), 400
+
         texto_generado = ""
         usando_ia = False
         evaluacion = None
-        
+        raza = ambiente = extension = None
+
         if rag_pipeline:
             try:
-                # El pipeline ahora puede devolver 3 valores
-                resultado = rag_pipeline.generar_escenario(raza, ambiente, extension)
-                
-                if len(resultado) == 3:
-                    descripcion, contextos, evaluacion = resultado
-                else:
-                    descripcion, contextos = resultado
-                    evaluacion = None
-                
+                descripcion, contextos, evaluacion, raza, ambiente, extension = rag_pipeline.generar_desde_descripcion(descripcion_usuario)
+
                 texto_generado = descripcion
                 usando_ia = True
                 print(f"✅ Escenario generado con {len(contextos)} contextos")
-                
+
                 if evaluacion:
                     print(f"📊 Evaluación: {evaluacion['puntuacion']:.1f}% - {'Aprobado' if evaluacion['cumple'] else 'Rechazado'}")
-                
+
             except Exception as e:
                 print(f"❌ Error en RAG: {e}")
                 texto_generado = f"❌ Error generando escenario: {str(e)}"
         else:
             texto_generado = "⚠️ RAG no disponible. Por favor, instala las dependencias necesarias."
-        
+
         return jsonify({
             "success": True,
             "texto": texto_generado,
             "usando_ia": usando_ia,
-            "evaluacion": evaluacion  # Incluir evaluación en la respuesta
+            "evaluacion": evaluacion,  # Incluir evaluación en la respuesta
+            "raza": raza,
+            "ambiente": ambiente,
+            "extension": extension
         })
-        
+
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

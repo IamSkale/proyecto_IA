@@ -112,20 +112,25 @@ Sé flexible pero honesto. Una descripción puede ser buena sin mencionar explí
             "sugerencias": ["Reintentar generación"]
         }
     
-    def _construir_prompt_correccion(self, texto: str, raza: str, ambiente: str, extension: str, evaluacion: dict) -> str:        
+    def _construir_prompt_correccion(self, texto: str, raza: str, ambiente: str, extension: str, evaluacion: dict, contextos=None) -> str:
         problemas = evaluacion.get("problemas", [])
         sugerencias = evaluacion.get("sugerencias", [])
-        
+
         texto_problemas = "\n".join([f"- {p}" for p in problemas]) if problemas else "- Ninguno detectado específicamente"
         texto_sugerencias = "\n".join([f"- {s}" for s in sugerencias]) if sugerencias else "- Mejorar la calidad general"
-        
+
+        contexto_texto = ""
+        if contextos:
+            lineas = "\n".join(f"- {c['contexto']}" for c in contextos)
+            contexto_texto = f"\nCONTEXTO DE REFERENCIA (asegúrate de reflejarlo en la versión corregida):\n{lineas}\n"
+
         return f"""Eres un Dungeon Master experto. Necesitas mejorar la siguiente descripción de un escenario de D&D.
 
 CARACTERÍSTICAS REQUERIDAS:
 - Raza: {raza}
 - Ambiente: {ambiente}
 - Extensión: {extension}
-
+{contexto_texto}
 DESCRIPCIÓN ACTUAL:
 {texto}
 
@@ -154,8 +159,8 @@ INSTRUCCIONES DE CORRECCIÓN:
 
 Genera la versión mejorada del escenario:"""
     
-    def corregir_con_ia(self, texto: str, raza: str, ambiente: str, extension: str, evaluacion: dict) -> str:
-        prompt = self._construir_prompt_correccion(texto, raza, ambiente, extension, evaluacion)
+    def corregir_con_ia(self, texto: str, raza: str, ambiente: str, extension: str, evaluacion: dict, contextos=None) -> str:
+        prompt = self._construir_prompt_correccion(texto, raza, ambiente, extension, evaluacion, contextos)
         
         try:
             texto_corregido = self.generator._generate(prompt, max_tokens=1000, temperature=0.6)
@@ -170,25 +175,25 @@ Genera la versión mejorada del escenario:"""
             print(f"   ⚠️ Error en corrección con IA: {e}")
             return texto
     
-    def regenerar_si_necesario(self, raza: str, ambiente: str, extension: str, max_intentos: int = 3) -> Tuple[str, Dict]:
+    def regenerar_si_necesario(self, raza: str, ambiente: str, extension: str, contextos=None, max_intentos: int = 3) -> Tuple[str, Dict]:
         texto = None
         evaluacion = None
-        
+
         for intento in range(max_intentos):
             print(f"\n🔄 Intento {intento + 1} de {max_intentos}")
-            
+
             if intento == 0:
                 # Primera generación normal
-                texto = self.generator.generar_descripcion_dnd(raza, ambiente, extension)
+                texto = self.generator.generar_descripcion_dnd(raza, ambiente, extension, contextos=contextos)
             else:
                 # Intentos siguientes: corregir basado en evaluación del modelo
                 if evaluacion:
                     print(f"   🔧 Corrigiendo según evaluación del modelo...")
-                    texto = self.corregir_con_ia(texto, raza, ambiente, extension, evaluacion)
+                    texto = self.corregir_con_ia(texto, raza, ambiente, extension, evaluacion, contextos)
                 else:
                     # Regenerar desde cero con temperatura diferente
                     print(f"   🎲 Regenerando escenario...")
-                    texto = self.generator.generar_descripcion_dnd(raza, ambiente, extension, temperature=0.8)
+                    texto = self.generator.generar_descripcion_dnd(raza, ambiente, extension, contextos=contextos, temperature=0.8)
             
             # Evaluar con el modelo (NO análisis local)
             print(f"   🤖 Evaluando con IA...")

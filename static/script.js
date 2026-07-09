@@ -1,29 +1,34 @@
 // Array para almacenar los textos
 let textos = [];
 let escenarioActual = null; // Almacenar el escenario generado actualmente
+let parametrosActuales = null; // raza, ambiente y extensión detectados por la IA
 
 // Elementos del DOM
-const razaSelect = document.getElementById('raza');
-const ambienteSelect = document.getElementById('ambiente');
-const extensionSelect = document.getElementById('extension');
+const descripcionInput = document.getElementById('descripcionUsuario');
 const btnGenerarIA = document.getElementById('btnGenerarIA');
 const btnGuardar = document.getElementById('btnGuardar');
 const loadingIndicator = document.getElementById('loadingIndicator');
 const previewGroup = document.getElementById('previewGroup');
 const vistaPreviaDiv = document.getElementById('vistaPrevia');
+const parametrosDetectados = document.getElementById('parametrosDetectados');
+const parametrosTextoDiv = document.getElementById('parametrosTexto');
 
 // Función para generar escenario con IA
 async function generarEscenarioConIA() {
-    const raza = razaSelect.value;
-    const ambiente = ambienteSelect.value;
-    const extension = extensionSelect.value;
-    
+    const descripcion = descripcionInput.value.trim();
+
+    if (!descripcion) {
+        alert('⚠️ Por favor, describe el escenario que quieres crear.');
+        return;
+    }
+
     // Mostrar loading
     loadingIndicator.style.display = 'block';
     previewGroup.style.display = 'none';
+    parametrosDetectados.style.display = 'none';
     btnGenerarIA.disabled = true;
     btnGuardar.disabled = true;
-    
+
     try {
         const response = await fetch('/api/generar-escenario', {
             method: 'POST',
@@ -31,24 +36,34 @@ async function generarEscenarioConIA() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                raza: raza,
-                ambiente: ambiente,
-                extension: extension
+                descripcion: descripcion
             })
         });
-        
+
         if (!response.ok) {
             throw new Error('Error al generar el escenario');
         }
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             escenarioActual = result.texto;
+            parametrosActuales = {
+                raza: result.raza,
+                ambiente: result.ambiente,
+                extension: result.extension
+            };
+
             vistaPreviaDiv.innerHTML = formatearTextoEscenario(escenarioActual);
             previewGroup.style.display = 'block';
+
+            if (result.raza && result.ambiente && result.extension) {
+                parametrosTextoDiv.textContent = `Raza: ${result.raza} | Ambiente: ${result.ambiente} | Extensión: ${result.extension}`;
+                parametrosDetectados.style.display = 'block';
+            }
+
             btnGuardar.disabled = false;
-            
+
             // Mostrar indicador de que se usó IA
             if (result.usando_ia) {
                 vistaPreviaDiv.classList.add('ia-generado');
@@ -125,17 +140,18 @@ function escapeHtml(text) {
 
 // Función para guardar el escenario generado por IA
 async function guardarEscenario() {
-    if (!escenarioActual) {
+    if (!escenarioActual || !parametrosActuales) {
         alert('⚠️ Por favor, genera un escenario con IA primero.');
         return false;
     }
-    
+
     const nuevoItem = {
         id: Date.now(),
         texto: escenarioActual,
-        raza: razaSelect.value,
-        ambiente: ambienteSelect.value,
-        extension: extensionSelect.value
+        descripcion: descripcionInput.value.trim(),
+        raza: parametrosActuales.raza,
+        ambiente: parametrosActuales.ambiente,
+        extension: parametrosActuales.extension
     };
     
     try {
@@ -193,7 +209,10 @@ async function eliminarTexto(id) {
 // Resetear el modal
 function resetearModal() {
     escenarioActual = null;
+    parametrosActuales = null;
+    descripcionInput.value = '';
     previewGroup.style.display = 'none';
+    parametrosDetectados.style.display = 'none';
     btnGuardar.disabled = true;
     vistaPreviaDiv.innerHTML = '';
     loadingIndicator.style.display = 'none';

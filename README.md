@@ -16,7 +16,7 @@ Sistema de generación automática de escenarios para **Dungeons & Dragons** uti
 - **Variedad de ambientes**: 17 ambientes naturales y temáticos
 - **Regeneración iterativa**: Mejora automática hasta cumplir criterios de calidad
 - **Interfaz web**: Aplicación Flask con interfaz amigable
-- **Sistema RAG**: Recupera contextos relevantes para mejorar la generación
+- **Sistema RAG**: Recupera contextos relevantes mediante embeddings semánticos (similitud coseno) e inyecta esa información en el prompt del LLM
 
 ## 📦 Requisitos
 
@@ -40,12 +40,12 @@ Sistema de generación automática de escenarios para **Dungeons & Dragons** uti
 - source venv/bin/activate  # En Windows: venv\Scripts\activate
 
 ### Instalar dependencias
-- pip install flask llama-cpp-python python-dotenv
+- pip install flask llama-cpp-python python-dotenv sentence-transformers
 
 ### Descargar el modelo
 - mkdir models
 - cd models
-- wget https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf
+- wget https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf
 - cd ..
 
 ### Ejecutar el proyecto

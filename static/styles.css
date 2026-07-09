@@ -481,6 +481,16 @@ body {
     box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.2);
 }
 
+textarea.selector {
+    cursor: text;
+    min-height: 100px;
+    line-height: 1.5;
+}
+
+textarea.selector::placeholder {
+    color: #8a8a8a;
+}
+
 .preview-group {
     margin-top: 20px;
     padding-top: 15px;
@@ -570,6 +580,20 @@ body {
 .vista-previa-ia.ia-generado {
     border-left: 5px solid #b30000;
     background: #404040;
+}
+
+/* Badge de parámetros detectados */
+.parametros-badge {
+    background: #3a3a3a;
+    padding: 10px 15px;
+    border-radius: 5px;
+    color: #e0e0e0;
+    border-left: 5px solid #8b0000;
+    font-size: 13px;
+    font-weight: 600;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
 }
 
 /* Estilos adicionales */

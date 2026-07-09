@@ -146,6 +146,14 @@
       "raza": "tritones",
       "ambiente": "costas",
       "extension": "pueblo"
+    },
+    {
+      "id": 1783552563110,
+      "texto": "👹 **El pueblo de japones orco**\n\nHogueras humeantes marcan los campamentos orcos que se extienden por este territorio agreste. Los guerreros pisan fuerte, probando su fuerza en combates rituales mientras los chamanes invocan a espíritus salvajes. Los no orcos rara vez son bienvenidos, y solo los más fuertes sobreviven el tiempo suficiente para ganarse un respeto rudimentario.\n\n⚠️ **Posibles encuentros**: Patrullas orcas, bestias de guerra y trampas de caza.",
+      "descripcion": "quiero un pueblo en Japón feudal de orcos",
+      "raza": "orcos",
+      "ambiente": "japones",
+      "extension": "pueblo"
     }
   ]
 }
